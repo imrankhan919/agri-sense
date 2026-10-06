@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/agrisense"
     redis_url: str = "redis://localhost:6379/0"
@@ -14,3 +15,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+print("DATABASE URL:", settings.database_url)
