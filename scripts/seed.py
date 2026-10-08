@@ -43,51 +43,138 @@ CROPS = [
 START, END = date(2024, 1, 1), date(2026, 9, 30)
 BATCH = 10_000
 
-
-def seed(force : bool = False) -> None :
+def seed(force: bool = False) -> None:
     create_db_and_tables()
-    with Session(engine) as session : 
-        if session.exec(select(Market)).first() :
-            if not force :
-                print("Data already exists , for data overwrite pass --force")
-                return 
-            session.exec(text("TRUNCATE price_records ,crop , market RESTART IDENTITY CASCADE"))
-            session.commit()
-        session.add_all([Market(name=n,state=s,district=d) for n,s,d in MARKETS ])
-        session.add_all([Crop(name=n,category=c) for n,c,_ in CROPS])
+
+    with Session(engine) as session:
+        if session.exec(select(Market)).first():
+            if not force:
+                print("Data already hai. Dobara load karna ho to --force lagao.")
+                return
+
+        session.exec(
+            text("TRUNCATE price_records, crop, market RESTART IDENTITY CASCADE")
+        )
         session.commit()
+
+        session.add_all(
+            [Market(name=n, state=s, district=d) for n, s, d in MARKETS]
+        )
+
+        session.add_all(
+            [Crop(name=n, category=c) for n, c, _ in CROPS]
+        )
+
+        session.commit()
+
         markets = session.exec(select(Market)).all()
         crops = session.exec(select(Crop)).all()
-    state_factor = {m.state: random.uniform(0.92 , 1.12) for m in markets}
-    crop_phase = {c.id : random.random() for c in crops}
-    base = {c.id : CROPS[i][2] for i , c in enumerate(crops)}
-    home = {"Indore" , "Ujjain" , "Mandsaur" , "Bhopal"}
-    pairs = [(m,c) for m in markets for c in crops if m.name in home or random.random() < 0.55]
-    days = (END-START).days + 1
-    rows,total = [],0
-    with engine.begin() as conn : 
-        for d in range(days) : 
-            day = START + timedelta(days = d)
-            year_pos = day.timetuple().tm_yday / 365 
-            growth = 1 + 0.04 * (d/365)
-            for m , c in pairs : 
-                if random.random() > 0.85 :
-                    continue 
-                season = 1 + 0.10 * math.sin(2 * math.pi * (year_pos + crop_phase[c.id]))
-                noise = 1 + random.gauss(0,0.02)
-                modal = round(base[c.id] * state_factor[m.state] * season * growth * noise , 2)
-                rows.append(dict(
-                    crop_id = c.id , market_id = m.id , price_date = day , modal_price = modal ,
-                    min_price = round(modal * 0.94 ,2) , max_price = round(modal * 1.06 , 2)
-                ))
-                if len(rows) >= BATCH :
-                    conn.execute(insert(PriceRecord.__table__) , rows)
-                    total  += len(rows)
-                    rows = []
-            if rows : 
-                conn.execute(insert(PriceRecord.__table__) , rows)
+
+        state_factor = {
+            m.state: random.uniform(0.92, 1.12)
+            for m in markets
+        }
+
+        crop_phase = {
+            c.id: random.random()
+            for c in crops
+        }
+
+        base = {
+            c.id: CROPS[i][2]
+            for i, c in enumerate(crops)
+        }
+
+        # Har (market, crop) jodi sabhi mandiyon me nahi bikti:
+        # ~55% jodiyan active.
+        #
+        # Madhya Pradesh ki 4 mandiyon me sabhi 20 fasal milti hain
+        # (class demo ke liye).
+        home = {"Indore", "Ujjain", "Mandsaur", "Bhopal"}
+
+        pairs = [
+            (m, c)
+            for m in markets
+            for c in crops
+            if m.name in home or random.random() < 0.55
+        ]
+
+        days = (END - START).days + 1
+
+        rows = []
+        total = 0
+
+        with engine.begin() as conn:
+            for d in range(days):
+                day = START + timedelta(days=d)
+
+                year_pos = day.timetuple().tm_yday / 365
+
+                # Saal me ~4% mehngayi
+                growth = 1 + 0.04 * (d / 365)
+
+                for m, c in pairs:
+
+                    # Kuch din mandi band / data missing
+                    if random.random() > 0.85:
+                        continue
+
+                    season = (
+                        1
+                        + 0.10
+                        * math.sin(
+                            2
+                            * math.pi
+                            * (year_pos + crop_phase[c.id])
+                        )
+                    )
+
+                    noise = 1 + random.gauss(0, 0.02)
+
+                    modal = round(
+                        base[c.id]
+                        * state_factor[m.state]
+                        * season
+                        * growth
+                        * noise,
+                        2,
+                    )
+
+                    rows.append(
+                        {
+                            "crop_id": c.id,
+                            "market_id": m.id,
+                            "price_date": day,
+                            "modal_price": modal,
+                            "min_price": round(modal * 0.94, 2),
+                            "max_price": round(modal * 1.06, 2),
+                        }
+                    )
+
+                    if len(rows) >= BATCH:
+                        conn.execute(
+                            insert(PriceRecord.__table__),
+                            rows,
+                        )
+
+                        total += len(rows)
+                        rows = []
+
+            # Remaining records
+            if rows:
+                conn.execute(
+                    insert(PriceRecord.__table__),
+                    rows,
+                )
+
                 total += len(rows)
-        print(f"Done: {len(markets)} markets, {len(crops)} crops, {total:,} price records")
+
+        print(
+            f"Done: {len(markets)} markets, "
+            f"{len(crops)} crops, "
+            f"{total:,} price records"
+        )
+
 
 if __name__ == "__main__":
- seed(force="--force" in sys.argv)
+    seed(force="--force" in sys.argv)

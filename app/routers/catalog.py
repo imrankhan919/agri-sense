@@ -19,8 +19,8 @@ def list_markets(
     stmt = select(Market)
     if state:
         stmt = stmt.where(Market.state == state)
-        stmt = stmt.order_by(Market.name).offset(offset).limit(limit)
-        return session.exec(stmt).all()
+    stmt = stmt.order_by(Market.name).offset(offset).limit(limit)
+    return session.exec(stmt).all()
 
 
 @router.get("/crops", response_model=list[CropRead])
