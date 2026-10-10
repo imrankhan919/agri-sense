@@ -3,3 +3,6 @@ uvicorn[standard]
 sqlmodel
 psycopg[binary]
 pydantic-settings
+bcrypt
+pyjwt
+python-multipart

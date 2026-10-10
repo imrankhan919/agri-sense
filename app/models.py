@@ -26,3 +26,25 @@ class PriceRecord(SQLModel, table=True):
     modal_price: float 
     min_price: float
     max_price: float
+
+
+class User(SQLModel, table=True):
+    __tablename__ = "users" # "user" Postgres ka reserved word hai, isliye "users"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(index=True, unique=True)
+    hashed_password: str
+    role: str = Field(default="farmer") # farmer / buyer / admin
+    state: Optional[str] = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+    
+class Listing(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    farmer_id: int = Field(foreign_key="users.id", index=True)
+    crop_id: int = Field(foreign_key="crop.id", index=True)
+    market_id: int = Field(foreign_key="market.id")
+    quantity_kg: int
+    ask_price: float # Rs per quintal
+    status: str = Field(default="open") # open / sold
+    created_at: datetime = Field(default_factory=utcnow)
