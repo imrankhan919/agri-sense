@@ -6,3 +6,5 @@ pydantic-settings
 bcrypt
 pyjwt
 python-multipart
+redis
+httpx

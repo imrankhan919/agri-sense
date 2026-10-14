@@ -1,8 +1,12 @@
 from datetime import date
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
+
+from app.config import settings
 from app.database import get_session
+from app.ratelimit import rate_limit
 from app.schemas import LatestPrice, PriceRead
 from app.services import price_service
 
@@ -10,7 +14,9 @@ from app.services import price_service
 router = APIRouter(prefix="/prices", tags=["prices"])
 
 
-@router.get("", response_model=list[PriceRead])
+read_limit = rate_limit(settings.read_limit_per_min, 60)
+
+@router.get("", response_model=list[PriceRead] , dependencies=[Depends(read_limit)])
 def get_prices(
  crop: Optional[str] = None,
  market_id: Optional[int] = None,
@@ -23,7 +29,7 @@ def get_prices(
     return price_service.list_prices(session, crop, market_id, date_from, date_to, limit, offset)
 
 
-@router.get("/latest", response_model=list[LatestPrice])
+@router.get("/latest", response_model=list[LatestPrice] ,  dependencies=[Depends(read_limit)])
 def latest(crop: str, session: Session = Depends(get_session)):
     rows = price_service.latest_prices(session, crop)
     if not rows:
