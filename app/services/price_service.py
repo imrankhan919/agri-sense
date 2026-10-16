@@ -54,3 +54,22 @@ def latest_prices(session: Session, crop: str) -> list[dict]:
     ORDER BY p.market_id, p.price_date DESC
     """
     return _rows(session.exec(text(sql), params={"crop": crop}))    
+
+
+
+
+def add_price(session: Session, crop_id: int, market_id: int, modal_price: float, price_date: date) -> dict:
+    crop = session.get(Crop, crop_id)
+    market = session.get(Market, market_id)
+    if crop is None or market is None:
+        raise ValueError("Crop ya market nahi mila")
+    record = PriceRecord(
+        crop_id=crop_id, market_id=market_id, price_date=price_date, modal_price=modal_price,
+        min_price=round(modal_price * 0.95, 2), max_price=round(modal_price * 1.05, 2),
+    )
+    session.add(record)
+    session.commit()
+    return dict(
+        price_date=price_date, crop=crop.name, market=market.name, state=market.state,
+        modal_price=record.modal_price, min_price=record.min_price, max_price=record.max_price,
+    )

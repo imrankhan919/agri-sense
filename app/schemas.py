@@ -61,3 +61,10 @@ class ListingRead(SQLModel):
     quantity_kg: int
     ask_price: float
     status: str
+
+
+class PriceSubmit(SQLModel):
+    crop_id: int
+    market_id: int
+    modal_price: float
+    price_date: Optional[date] = None
