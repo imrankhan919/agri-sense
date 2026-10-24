@@ -68,3 +68,16 @@ class PriceSubmit(SQLModel):
     market_id: int
     modal_price: float
     price_date: Optional[date] = None
+
+
+class TrendPoint(SQLModel):
+    month: date
+    avg_price: float
+    change_pct: Optional[float] = None 
+
+class MarketCompare(SQLModel):
+    rank: int
+    market: str
+    state: str
+    month: date
+    avg_price: float

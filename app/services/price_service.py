@@ -73,3 +73,42 @@ def add_price(session: Session, crop_id: int, market_id: int, modal_price: float
         price_date=price_date, crop=crop.name, market=market.name, state=market.state,
         modal_price=record.modal_price, min_price=record.min_price, max_price=record.max_price,
     )
+
+
+MIN_SAMPLES = 10
+
+def trend(session: Session, crop: str, market_id: int, months: int) -> list[dict]:
+    sql = """
+        WITH t AS (
+        SELECT mv.month,
+        mv.avg_price,
+        LAG(mv.avg_price) OVER (ORDER BY mv.month) AS prev_avg
+        FROM mv_monthly_prices mv
+        JOIN crop c ON c.id = mv.crop_id
+        WHERE LOWER(c.name) = LOWER(:crop) AND mv.market_id = :market_id
+        AND mv.samples >= :min_samples -- adhoora mahina (bahut kam records) ignore
+        )
+    SELECT month, avg_price,
+    ROUND(((avg_price - prev_avg) / prev_avg * 100)::numeric, 2) AS change_pct
+    FROM t
+    ORDER BY month DESC
+    LIMIT :months
+    """
+    return _rows(session.exec(text(sql), params={"crop": crop, "market_id": market_id, "months": months, "min_samples": MIN_SAMPLES}))
+
+
+def compare_markets(session: Session, crop: str, limit: int = 10) -> list[dict]:
+    sql = """
+        SELECT RANK() OVER (ORDER BY mv.avg_price DESC) AS rank,
+        m.name AS market, m.state, mv.month, mv.avg_price
+        FROM mv_monthly_prices mv
+        JOIN crop c ON c.id = mv.crop_id
+        JOIN market m ON m.id = mv.market_id
+        WHERE LOWER(c.name) = LOWER(:crop)
+        AND mv.samples >= :min_samples
+        AND mv.month = (SELECT MAX(month) FROM mv_monthly_prices
+        WHERE crop_id = mv.crop_id AND samples >= :min_samples)
+        ORDER BY rank
+        LIMIT :limit
+        """
+    return _rows(session.exec(text(sql), params={"crop": crop, "limit": limit, "min_samples": MIN_SAMPLES}))
