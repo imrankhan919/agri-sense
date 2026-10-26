@@ -1,9 +1,10 @@
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query , Response
 from sqlmodel import Session
 
+from app import cache
 from app.config import settings
 from app.database import get_session
 from app.deps import require_role
@@ -20,6 +21,9 @@ read_limit = rate_limit(settings.read_limit_per_min, 60)
 latest_limit = rate_limit(settings.read_limit_per_min, 60, "sliding")
 submit_limit = rate_limit(5, 60, "bucket") 
 
+LATEST_TTL = 300
+
+
 @router.get("", response_model=list[PriceRead] , dependencies=[Depends(read_limit)])
 def get_prices(
  crop: Optional[str] = None,
@@ -34,10 +38,17 @@ def get_prices(
 
 
 @router.get("/latest", response_model=list[LatestPrice] ,  dependencies=[Depends(latest_limit)])
-def latest(crop: str, session: Session = Depends(get_session)):
+def latest(crop: str, response: Response, session: Session = Depends(get_session)):
+    key = f"latest:{crop.lower()}"
+    cached = cache.get_json(key)
+    if cached is not None : 
+        response.headers["X-Cache"] = "HIT"
+        return cached
     rows = price_service.latest_prices(session, crop)
     if not rows:
         raise HTTPException(404, f"'{crop}' no crops prices found!")
+    cache.set_json(key, rows, LATEST_TTL)
+    response.headers["X-Cache"] = "MISS"
     return rows
 
 
@@ -53,6 +64,8 @@ def submit_price(
     if body.modal_price <= 0:
         raise HTTPException(400, "0 price not allowed")
     try:
-        return price_service.add_price(session, body.crop_id, body.market_id, body.modal_price, price_date)
+        result = price_service.add_price(session, body.crop_id, body.market_id, body.modal_price, price_date)
     except ValueError as exc:
         raise HTTPException(404, str(exc))
+    cache.delete(f"latest:{result['crop'].lower()}")
+    return result

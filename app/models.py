@@ -48,3 +48,14 @@ class Listing(SQLModel, table=True):
     ask_price: float # Rs per quintal
     status: str = Field(default="open") # open / sold
     created_at: datetime = Field(default_factory=utcnow)
+
+
+
+class Order(SQLModel, table=True):
+    __tablename__ = "orders"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    listing_id: int = Field(foreign_key="listing.id", index=True)
+    buyer_id: int = Field(foreign_key="users.id", index=True)
+    quantity_kg: int
+    total_amount: float # Rs
+    created_at: datetime = Field(default_factory=utcnow)

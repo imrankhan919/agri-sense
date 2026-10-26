@@ -81,3 +81,15 @@ class MarketCompare(SQLModel):
     state: str
     month: date
     avg_price: float
+
+
+class OrderCreate(SQLModel):
+    quantity_kg: int
+
+
+class OrderRead(SQLModel):
+    id: int
+    listing_id: int
+    buyer_id: int
+    quantity_kg: int
+    total_amount: float
