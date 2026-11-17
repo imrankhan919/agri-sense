@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     secret_key: str = "agrisense123"
     access_token_minutes: int = 60
     read_limit_per_min: int = 60 
-    llm_provider: str = "fake" 
+    llm_provider: str = "gemini" 
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-latest"
     agent_daily_token_quota: int = 20000 

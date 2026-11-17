@@ -8,3 +8,4 @@ pyjwt
 python-multipart
 redis
 httpx
+google-genai
