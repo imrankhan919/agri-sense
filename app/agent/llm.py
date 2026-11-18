@@ -29,7 +29,7 @@ class GeminiClient:
         self.model = settings.gemini_model
         self.client = genai.Client(
         api_key=settings.gemini_api_key,
-        http_options=types.HttpOptions(timeout=30_000), # 30 sec (milliseconds me)
+        http_options=types.HttpOptions(timeout=120_000), # 30 sec (milliseconds me)
         )
     @staticmethod
     def to_contents(messages: list[dict], types) -> list:

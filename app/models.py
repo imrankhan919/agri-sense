@@ -59,3 +59,17 @@ class Order(SQLModel, table=True):
     quantity_kg: int
     total_amount: float # Rs
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class AgentRun(SQLModel, table=True):
+    __tablename__ = "agent_runs" # har agent run ka audit log
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    question: str
+    answer: str = ""
+    steps_json: str = "[]" # kaun se tools kis arguments ke saath chale
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: int = 0
+    status: str = "ok" # ok / error
+    created_at: datetime = Field(default_factory=utcnow)
