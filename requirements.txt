@@ -9,3 +9,4 @@ python-multipart
 redis
 httpx
 google-genai
+locust

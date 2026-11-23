@@ -4,6 +4,7 @@ from sqlalchemy import func, text
 from sqlmodel import Session, select
 from app.models import Crop, Market, PriceRecord
 
+MIN_SAMPLES = 10
 
 def _rows(result) -> list[dict]:
     return [dict(row._mapping) for row in result]
@@ -31,7 +32,10 @@ def list_prices(
         .join(Market, Market.id == PriceRecord.market_id)
         )
     if crop:
-        stmt = stmt.where(func.lower(Crop.name) == crop.lower())
+        crop_id = session.exec(select(Crop.id).where(func.lower(Crop.name) == crop.lower())).first()
+        if crop_id is None:
+            return []
+        stmt = stmt.where(PriceRecord.crop_id == crop_id)
         if market_id:
             stmt = stmt.where(PriceRecord.market_id == market_id)
         if date_from:
@@ -99,15 +103,21 @@ def trend(session: Session, crop: str, market_id: int, months: int) -> list[dict
 
 def compare_markets(session: Session, crop: str, limit: int = 10) -> list[dict]:
     sql = """
+       WITH target AS (
+        SELECT id FROM crop WHERE LOWER(name) = LOWER(:crop) LIMIT 1
+        ),
+        latest AS (
+        SELECT MAX(mv.month) AS month
+        FROM mv_monthly_prices mv JOIN target ON mv.crop_id = target.id
+        WHERE mv.samples >= :min_samples
+        )
         SELECT RANK() OVER (ORDER BY mv.avg_price DESC) AS rank,
         m.name AS market, m.state, mv.month, mv.avg_price
         FROM mv_monthly_prices mv
-        JOIN crop c ON c.id = mv.crop_id
+        JOIN target ON mv.crop_id = target.id
+        JOIN latest ON mv.month = latest.month
         JOIN market m ON m.id = mv.market_id
-        WHERE LOWER(c.name) = LOWER(:crop)
-        AND mv.samples >= :min_samples
-        AND mv.month = (SELECT MAX(month) FROM mv_monthly_prices
-        WHERE crop_id = mv.crop_id AND samples >= :min_samples)
+        WHERE mv.samples >= :min_samples
         ORDER BY rank
         LIMIT :limit
         """
