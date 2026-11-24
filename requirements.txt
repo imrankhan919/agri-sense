@@ -10,3 +10,4 @@ redis
 httpx
 google-genai
 locust
+pytest
